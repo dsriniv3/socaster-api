@@ -115,9 +115,31 @@ def insert_events(items):
     for item in items:
         tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
         if not tool: 
-			db.tools.insert({application:item['application'], name:item['tool'],users:[]})
+			#db.tools.insert({application: item['application'], name: item['tool'], users:[]})
+ 			db.tools.update({'application': item['application'], 'name': item['tool']}, {
+            		'users': [],
+            		'application': item['application'],
+            		'name': item['tool'],
+            		}, upsert=True)
 			tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
-
+        appl=item['application']
+        if appl=='Excel':
+		uploadedFile=item['file']        
+        	if uploadedFile:
+            		toolTableEntry = db.excelTools.find_one({'name': item['tool']})
+            		#TO-DO pick smaller file
+            		if not toolTableEntry:
+                		fileID = db.files.find_one({'file':item['file']})
+                                if not fileID:
+                                    db.files.update({'file': item['file']}, {
+            			    'file':item['file'],
+            			    }, upsert=True)
+                                    fileID = db.files.find_one({'file':item['file']})
+                		db.excelTools.update({'tool': item['tool']}, {
+            			'user': g.user['email'],
+            			'file':fileID['_id'],
+            			'tool': item['tool'],
+            			}, upsert=True)
         item['description'] = tool['_id']
         item['user_id'] = g.user['email']
 
@@ -138,6 +160,7 @@ def record_bulk_usage():
         return app.auth.authenticate()
 
     db = app.data.driver.db
+    
     #usages: [{app_name: str, tool_name: str, keyboard: int, mouse: int}]
     usages = request.get_json()
     v = Validator({
@@ -167,6 +190,7 @@ def record_bulk_usage():
         #add user to tool user set
         db.tools.update({'_id': tool_id},
                         {'$addToSet': {'users': g.user['email']}})
+        
 
         db.usages.update({'tool': tool_id, 'user': g.user['email']}, {
             'tool': tool_id,
@@ -246,6 +270,6 @@ if __name__ == '__main__':
     app.on_insert_events += insert_events
 
     http_server = HTTPServer(WSGIContainer(app))
-    http_server.listen(5000)
+    http_server.listen(5005)
     IOLoop.instance().start()
-    # app.run()
+    app.run(host='0.0.0.0')

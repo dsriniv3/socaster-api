@@ -83,6 +83,42 @@ tools = {
     }
 }
 
+excelTools = {
+    'schema': {
+        #'name': {'type': 'string'},
+        'user': {
+            'type': 'string',
+            'data_relation': {
+                'resource': 'user',
+                'field': 'name',
+            }
+        },
+        'tool': {
+            'type': 'string',
+            'data_relation': {
+                'resource': 'tools',
+                'field': 'name',
+            }
+        },
+        'file':{
+            'type': 'string',
+            'data_relation': {
+                 'resource': 'files',
+                 'field': '_id',
+                 'embeddable': True,
+            }
+        }            
+    }
+} 
+
+files = {
+    'schema':{
+        'file':{
+	    'type': 'string',
+	}
+    }
+}
+
 usages = {
     'restrict_update':'user',
     'creator': 'user',
@@ -109,6 +145,13 @@ usages = {
         'mouse': {
             'type': 'integer',
             'default': 0
+        },
+        'file': {
+            'type': 'string',
+            'data_relation': {
+                'resource': 'files',
+                'field': 'file',
+            }
         }
     }
 }
@@ -292,7 +335,8 @@ events = {
         "description" : {'type': 'objectid'}, #submitted as application and tool, but translated in hook
         "bindingUsed" : {'type': 'boolean', 'default': False},
         "time" : {'type': 'integer', 'default': 0},
-        "bundleVersion" : {'type': 'string', 'default': 'faked'}
+        "bundleVersion" : {'type': 'string', 'default': 'faked'},
+        "file" : {'type': 'string','default':' '}
     }
 }
 
@@ -341,6 +385,8 @@ DOMAIN = {
     'users': users,
     'applications': applications,
     'tools': tools,
+    'excelTools': excelTools,
+    'files': files,
     'usages': usages,
     'notifications': notifications,
     'clips': clips,
