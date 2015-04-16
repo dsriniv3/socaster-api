@@ -115,31 +115,20 @@ def insert_events(items):
     for item in items:
         tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
         if not tool: 
-			#db.tools.insert({application: item['application'], name: item['tool'], users:[]})
- 			db.tools.update({'application': item['application'], 'name': item['tool']}, {
-            		'users': [],
-            		'application': item['application'],
-            		'name': item['tool'],
-            		}, upsert=True)
-			tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
+			db.tools.insert({'application': item['application'], 'name': item['tool'], 'users':[]})
+ 			tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
         appl=item['application']
         if appl=='Excel':
 		uploadedFile=item['file']        
-        	if uploadedFile:
-            		toolTableEntry = db.excelTools.find_one({'name': item['tool']})
+        	if len(uploadedFile)>2:
+            		toolTableEntry = db.excelTools.find_one({'name': item['tool'], 'user':g.user['_id']})
             		#TO-DO pick smaller file
             		if not toolTableEntry:
                 		fileID = db.files.find_one({'file':item['file']})
                                 if not fileID:
-                                    db.files.update({'file': item['file']}, {
-            			    'file':item['file'],
-            			    }, upsert=True)
+                                    db.files.insert({'file':item['file'],'share':['all']})
                                     fileID = db.files.find_one({'file':item['file']})
-                		db.excelTools.update({'tool': item['tool']}, {
-            			'user': g.user['email'],
-            			'file':fileID['_id'],
-            			'tool': item['tool'],
-            			}, upsert=True)
+                		db.excelTools.insert({'user': g.user['email'],'file':fileID['_id'],'tool': item['tool']})
         item['description'] = tool['_id']
         item['user_id'] = g.user['email']
 
@@ -153,6 +142,45 @@ def insert_events(items):
         eve.LAST_UPDATED: now
     })
     db.users.update({'_id': user['_id']}, user)
+
+
+@app.route('/fileShare', methods=['POST', 'PUT'])
+def share_files():
+    if not app.auth.authorized([], '', request.method):
+        return app.auth.authenticate()
+
+    db = app.data.driver.db
+    
+    files = request.get_json()
+
+    if not files:
+        abort(400, "Please supply valid file to share")
+
+    file_desc =  {
+        'user': g.user['email'],
+        'tool': files['toolName'],
+    }
+    if not files['file']:
+        excelTool = db.excelTools.find_one(file_desc)
+        if not excelTool:
+            abort(400, "No file supplied for sharing. File does not already exist")
+	fileID = db.files.find_one({'_id':excelTool['file']})
+	db.files.update({'_id': fileID['_id']},
+                    {'$push': {'share': files['recipient']}})
+    else:
+        excelTool = db.excelTools.find_one(file_desc)
+        if not excelTool:
+            db.files.insert({'file': files['file']})
+	    fileID = db.files.find_one({'file':files['file']})
+	    excelTool = db.excelTools.insert({'tool': files['toolName'],'user': g.user['email'],'file': fileID['_id']})
+                                         
+            #add user to users who can view the file
+            db.files.update({'file': files['file']},
+                    {'$push': {'share': files['recipient']}})
+    return make_response(json.dumps({
+        'message': 'Usages were uploaded successfully',
+        '_status': 'OK',
+        '_code': '201'}), 201)
 
 @app.route('/report-usage', methods=['POST', 'PUT'])
 def record_bulk_usage():

@@ -90,7 +90,7 @@ excelTools = {
             'type': 'string',
             'data_relation': {
                 'resource': 'user',
-                'field': 'name',
+                'field': 'email',
             }
         },
         'tool': {
@@ -115,7 +115,17 @@ files = {
     'schema':{
         'file':{
 	    'type': 'string',
-	}
+        },
+    'share': {
+            'type': 'list',
+            'schema': {
+                'type': 'string',
+                'data_relation': {
+                    'resource': 'users',
+                    'field': 'email',
+                }
+            }
+        }
     }
 }
 
