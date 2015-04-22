@@ -113,19 +113,23 @@ excelTools = {
 
 files = {
     'schema':{
-        'file':{
+        'file_data':{
 	    'type': 'string',
         },
-    'share': {
-            'type': 'list',
-            'schema': {
-                'type': 'string',
-                'data_relation': {
-                    'resource': 'users',
-                    'field': 'email',
+        'file_ext':{
+	    'type': 'string',
+        },
+    
+        'share': {
+                'type': 'list',
+                'schema': {
+                    'type': 'string',
+                    'data_relation': {
+                        'resource': 'users',
+                        'field': 'email',
+                    }
                 }
             }
-        }
     }
 }
 
@@ -346,7 +350,8 @@ events = {
         "bindingUsed" : {'type': 'boolean', 'default': False},
         "time" : {'type': 'integer', 'default': 0},
         "bundleVersion" : {'type': 'string', 'default': 'faked'},
-        "file" : {'type': 'string','default':' '}
+        "file_data" : {'type': 'string','default':' '},
+	"file_ext"  : {'type': 'string', 'default':' '}
     }
 }
 

@@ -119,15 +119,14 @@ def insert_events(items):
  			tool = db.tools.find_one({'name': item['tool'], 'application': item['application']})
         appl=item['application']
         if appl=='Excel':
-		uploadedFile=item['file']        
-        	if len(uploadedFile)>2:
-            		toolTableEntry = db.excelTools.find_one({'name': item['tool'], 'user':g.user['_id']})
+		if len(item['file_data'])>2:
+			toolTableEntry = db.excelTools.find_one({'name': item['tool'], 'user':g.user['_id']})
             		#TO-DO pick smaller file
             		if not toolTableEntry:
-                		fileID = db.files.find_one({'file':item['file']})
+                		fileID = db.files.find_one({'file':item['file_data']})
                                 if not fileID:
-                                    db.files.insert({'file':item['file'],'share':['all']})
-                                    fileID = db.files.find_one({'file':item['file']})
+                                    db.files.insert({'file':item['file_data'],'extension':item['file_ext'], 'share':['all']})
+                                    fileID = db.files.find_one({'file':item['file_data']})
                 		db.excelTools.insert({'user': g.user['email'],'file':fileID['_id'],'tool': item['tool']})
         item['description'] = tool['_id']
         item['user_id'] = g.user['email']
@@ -160,27 +159,63 @@ def share_files():
         'user': g.user['email'],
         'tool': files['toolName'],
     }
-    if not files['file']:
+    if not files['file_data']:
         excelTool = db.excelTools.find_one(file_desc)
         if not excelTool:
             abort(400, "No file supplied for sharing. File does not already exist")
 	fileID = db.files.find_one({'_id':excelTool['file']})
 	db.files.update({'_id': fileID['_id']},
-                    {'$push': {'share': files['recipient']}})
+                    {'$addToSet': {'share': files['recipient']}})
     else:
         excelTool = db.excelTools.find_one(file_desc)
         if not excelTool:
-            db.files.insert({'file': files['file']})
-	    fileID = db.files.find_one({'file':files['file']})
+            db.files.insert({'file_data': files['file_data'], 'file_ext':files['file_ext']})
+	    fileID = db.files.find_one({'file_data':files['file_data']})
 	    excelTool = db.excelTools.insert({'tool': files['toolName'],'user': g.user['email'],'file': fileID['_id']})
                                          
             #add user to users who can view the file
-            db.files.update({'file': files['file']},
-                    {'$push': {'share': files['recipient']}})
+            db.files.update({'file_data': files['file_data']},
+                    {'$addToSet': {'share': files['recipient']}})
     return make_response(json.dumps({
         'message': 'Usages were uploaded successfully',
         '_status': 'OK',
         '_code': '201'}), 201)
+
+@app.route('/fetch-files',methods=['POST'])
+def fetch_shared_files():
+    if not app.auth.authorized([], '', request.method):
+        return app.auth.authenticate()
+
+    db = app.data.driver.db
+    
+    share_details = request.get_json()
+
+    if not share_details:
+        abort(400, "To share files, please provide toolname and ownername")
+
+    file_desc =  {
+        'user': share_details['ownerName'],
+	'tool': share_details['toolName']
+    }
+    tool = db.excelTools.find_one(file_desc)
+    if not tool:
+        abort(400, "Error: The file cannot be shared as no such tool usage exists")
+    if not tool['file']:
+        abort(400, "Error: The user has not shared his file to public")		
+    file = db.files.find_one({'_id':tool['file']})
+    if not file:
+        abort(400, "Unusual happening");
+    if not file['share']:
+        abort(400, "Error: The owner of the requested file has not shared it with you yet")
+    for user in file['share']:
+        if user==g.user['email'] or user=='all':
+            return make_response(json.dumps({
+            'message': 'Shared file obtained successfully',
+	    'file_data'   : file['file_data'],
+	    'file_ext'    : file['file_ext'],
+            '_status': 'OK',
+            '_code': '201'}), 201)
+    abort(400, "Error: The owner of the requested file has not shared it with you yet")
 
 @app.route('/report-usage', methods=['POST', 'PUT'])
 def record_bulk_usage():
